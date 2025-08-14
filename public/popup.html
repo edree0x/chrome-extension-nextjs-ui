@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Chrome Extension Popup</title>
+  <style>
+    /* Import Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    /* Reset and base styles */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      width: 350px;
+      min-height: 400px;
+      background: #ffffff;
+      color: #1f2937;
+      line-height: 1.5;
+    }
+    
+    .popup-container {
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    .header {
+      text-align: center;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 16px;
+    }
+    
+    .header h1 {
+      font-size: 20px;
+      font-weight: 600;
+      color: #111827;
+      margin-bottom: 4px;
+    }
+    
+    .header p {
+      font-size: 14px;
+      color: #6b7280;
+    }
+    
+    .content {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    
+    .status-card {
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 16px;
+    }
+    
+    .status-title {
+      font-size: 14px;
+      font-weight: 500;
+      color: #374151;
+      margin-bottom: 8px;
+    }
+    
+    .status-message {
+      font-size: 13px;
+      color: #6b7280;
+      margin-bottom: 12px;
+    }
+    
+    .button {
+      background: #111827;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 10px 16px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      width: 100%;
+    }
+    
+    .button:hover {
+      background: #374151;
+      transform: translateY(-1px);
+    }
+    
+    .button:active {
+      transform: translateY(0);
+    }
+    
+    .button.secondary {
+      background: #f3f4f6;
+      color: #374151;
+      border: 1px solid #d1d5db;
+    }
+    
+    .button.secondary:hover {
+      background: #e5e7eb;
+    }
+    
+    .actions {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    
+    .page-info {
+      background: #fef3c7;
+      border: 1px solid #fbbf24;
+      border-radius: 6px;
+      padding: 12px;
+      font-size: 12px;
+    }
+    
+    .page-info-title {
+      font-weight: 500;
+      color: #92400e;
+      margin-bottom: 4px;
+    }
+    
+    .page-info-content {
+      color: #b45309;
+      word-break: break-all;
+    }
+    
+    .loading {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+    
+    .success {
+      background: #d1fae5;
+      border-color: #10b981;
+    }
+    
+    .success .status-title {
+      color: #065f46;
+    }
+    
+    .success .status-message {
+      color: #047857;
+    }
+    
+    .error {
+      background: #fee2e2;
+      border-color: #ef4444;
+    }
+    
+    .error .status-title {
+      color: #991b1b;
+    }
+    
+    .error .status-message {
+      color: #dc2626;
+    }
+  </style>
+</head>
+<body>
+  <div class="popup-container">
+    <div class="header">
+      <h1>Chrome Extension</h1>
+      <p>Modern UI with Next.js Components</p>
+    </div>
+    
+    <div class="content">
+      <div id="status-card" class="status-card">
+        <div class="status-title">Extension Status</div>
+        <div id="status-message" class="status-message">Ready to use</div>
+      </div>
+      
+      <div class="actions">
+        <button id="main-action" class="button">Run Main Action</button>
+        <button id="page-info-btn" class="button secondary">Get Page Info</button>
+        <button id="highlight-btn" class="button secondary">Highlight Elements</button>
+        <button id="remove-highlights-btn" class="button secondary">Remove Highlights</button>
+      </div>
+      
+      <div id="page-info" class="page-info" style="display: none;">
+        <div class="page-info-title">Current Page:</div>
+        <div id="page-info-content" class="page-info-content"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Popup functionality
+    document.addEventListener('DOMContentLoaded', function() {
+      const statusCard = document.getElementById('status-card');
+      const statusMessage = document.getElementById('status-message');
+      const mainActionBtn = document.getElementById('main-action');
+      const pageInfoBtn = document.getElementById('page-info-btn');
+      const highlightBtn = document.getElementById('highlight-btn');
+      const removeHighlightsBtn = document.getElementById('remove-highlights-btn');
+      const pageInfoDiv = document.getElementById('page-info');
+      const pageInfoContent = document.getElementById('page-info-content');
+
+      // Update status display
+      function updateStatus(message, type = 'default') {
+        statusMessage.textContent = message;
+        statusCard.className = `status-card ${type}`;
+      }
+
+      // Set loading state
+      function setLoading(isLoading) {
+        document.body.classList.toggle('loading', isLoading);
+      }
+
+      // Main action button
+      mainActionBtn.addEventListener('click', function() {
+        setLoading(true);
+        updateStatus('Executing main action...', 'default');
+        
+        try {
+          chrome.runtime.sendMessage({ action: 'performTask' }, function(response) {
+            setLoading(false);
+            if (chrome.runtime.lastError) {
+              updateStatus('Error: ' + chrome.runtime.lastError.message, 'error');
+            } else if (response && response.success) {
+              updateStatus(response.message || 'Action completed successfully!', 'success');
+            } else {
+              updateStatus('Action failed. Please try again.', 'error');
+            }
+          });
+        } catch (error) {
+          setLoading(false);
+          updateStatus('Error: ' + error.message, 'error');
+        }
+      });
+
+      // Get page info button
+      pageInfoBtn.addEventListener('click', function() {
+        setLoading(true);
+        
+        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+          if (tabs[0]) {
+            chrome.tabs.sendMessage(tabs[0].id, { action: 'getPageInfo' }, function(response) {
+              setLoading(false);
+              if (chrome.runtime.lastError) {
+                updateStatus('Could not get page info', 'error');
+              } else if (response && response.success) {
+                const data = response.data;
+                pageInfoContent.textContent = `${data.title} - ${data.url}`;
+                pageInfoDiv.style.display = 'block';
+                updateStatus('Page info retrieved', 'success');
+              } else {
+                updateStatus('Failed to get page info', 'error');
+              }
+            });
+          }
+        });
+      });
+
+      // Highlight elements button
+      highlightBtn.addEventListener('click', function() {
+        setLoading(true);
+        
+        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+          if (tabs[0]) {
+            chrome.tabs.sendMessage(tabs[0].id, { action: 'highlightElements' }, function(response) {
+              setLoading(false);
+              if (response && response.success) {
+                updateStatus('Elements highlighted on page', 'success');
+              } else {
+                updateStatus('Could not highlight elements', 'error');
+              }
+            });
+          }
+        });
+      });
+
+      // Remove highlights button
+      removeHighlightsBtn.addEventListener('click', function() {
+        setLoading(true);
+        
+        chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
+          if (tabs[0]) {
+            chrome.tabs.sendMessage(tabs[0].id, { action: 'removeHighlights' }, function(response) {
+              setLoading(false);
+              if (response && response.success) {
+                updateStatus('Highlights removed from page', 'success');
+              } else {
+                updateStatus('Could not remove highlights', 'error');
+              }
+            });
+          }
+        });
+      });
+
+      // Initialize
+      updateStatus('Extension ready to use', 'success');
+    });
+  </script>
+</body>
+</html>
